@@ -496,23 +496,47 @@
   }
 
   function showResult(data) {
-    const top = data.top;
-    const confidence = (data.confidence * 100).toFixed(1);
-    const predictions = data.predictions;
+    // Roboflow อาจส่งกลับมาหลายรูปแบบ รองรับทั้งหมด
+    let top, confidence, predictions;
+
+    if (data.predicted_classes && data.predictions) {
+      // รูปแบบใหม่
+      top = data.predicted_classes[0];
+      const topPred = data.predictions[top];
+      confidence = topPred ? topPred.confidence : 0;
+      predictions = data.predictions;
+    } else if (data.top) {
+      // รูปแบบเก่า
+      top = data.top;
+      confidence = data.confidence;
+      predictions = data.predictions || {};
+    } else {
+      throw new Error('ไม่สามารถอ่านผลลัพธ์จาก API ได้');
+    }
 
     document.getElementById('resultName').textContent = top;
     document.getElementById('resultConfidence').innerHTML =
-      `ความมั่นใจ: <span>${confidence}%</span>`;
+      `ความมั่นใจ: <span>${(confidence * 100).toFixed(1)}%</span>`;
     document.getElementById('danceDesc').textContent =
       danceInfo[top] || 'ท่าเต้นอินเดียที่สวยงาม';
 
     // Bars
     const container = document.getElementById('barsContainer');
     container.innerHTML = '';
-    const sorted = Object.entries(predictions).sort((a, b) => b[1].confidence - a[1].confidence);
 
-    sorted.forEach(([name, val]) => {
-      const pct = (val.confidence * 100).toFixed(1);
+    let entries = [];
+    if (Array.isArray(predictions)) {
+      entries = predictions.map(p => [p.class, p.confidence]);
+    } else {
+      entries = Object.entries(predictions).map(([name, val]) => [
+        name, typeof val === 'object' ? val.confidence : val
+      ]);
+    }
+
+    entries.sort((a, b) => b[1] - a[1]);
+
+    entries.forEach(([name, conf]) => {
+      const pct = (conf * 100).toFixed(1);
       const div = document.createElement('div');
       div.className = 'bar-item';
       div.innerHTML = `
@@ -525,7 +549,6 @@
 
     document.getElementById('resultCard').classList.add('show');
 
-    // Animate bars
     setTimeout(() => {
       document.querySelectorAll('.bar-fill').forEach(el => {
         el.style.width = el.dataset.pct + '%';
