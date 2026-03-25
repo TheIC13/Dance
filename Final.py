@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dance Classifier 🕺</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Sans+Thai:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --card: #1a1a24;
+      --accent: #e8c97e;
+      --accent2: #c97eb0;
+      --text: #f0ece0;
+      --muted: #7a7a8a;
+      --border: rgba(232,201,126,0.15);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans Thai', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background decoration */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; right: -200px;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(232,201,126,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -200px; left: -200px;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(201,126,176,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 60px 24px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    .label-tag {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--border);
+      padding: 6px 16px;
+      border-radius: 100px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 900;
+      line-height: 1.1;
+      background: linear-gradient(135deg, var(--accent) 0%, #fff 50%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 300;
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 20px;
+      padding: 56px 32px;
+      text-align: center;
+      background: var(--card);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(232,201,126,0.03), rgba(201,126,176,0.03));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 20px 60px rgba(232,201,126,0.1);
+    }
+
+    .upload-zone:hover::before, .upload-zone.drag-over::before {
+      opacity: 1;
+    }
+
+    .upload-icon {
+      font-size: 3.5rem;
+      margin-bottom: 16px;
+      display: block;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .upload-zone h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .upload-zone p {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Preview */
+    .preview-wrap {
+      margin-top: 32px;
+      display: none;
+    }
+
+    .preview-wrap.show { display: block; }
+
+    .preview-img-wrap {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--card);
+      aspect-ratio: 16/9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preview-img-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+    }
+
+    /* Analyze Button */
+    .btn-analyze {
+      display: block;
+      width: 100%;
+      margin-top: 20px;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0a0a0f;
+      font-family: 'IBM Plex Sans Thai', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-analyze:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(232,201,126,0.3);
+    }
+
+    .btn-analyze:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Loading */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .loading.show { display: block; }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Result */
+    .result-card {
+      display: none;
+      margin-top: 32px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .result-card.show { display: block; }
+
+    .result-header {
+      padding: 28px 32px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-header .small {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .result-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: capitalize;
+    }
+
+    .result-confidence {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .result-confidence span {
+      color: var(--accent2);
+      font-weight: 500;
+    }
+
+    .result-bars {
+      padding: 24px 32px 28px;
+    }
+
+    .result-bars h4 {
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .bar-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .bar-label {
+      width: 130px;
+      font-size: 0.85rem;
+      text-transform: capitalize;
+      flex-shrink: 0;
+      color: var(--text);
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 100px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+      width: 0%;
+    }
+
+    .bar-pct {
+      width: 44px;
+      text-align: right;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    /* Error */
+    .error-box {
+      display: none;
+      margin-top: 24px;
+      padding: 16px 20px;
+      background: rgba(255,80,80,0.08);
+      border: 1px solid rgba(255,80,80,0.2);
+      border-radius: 12px;
+      color: #ff8080;
+      font-size: 0.9rem;
+    }
+
+    .error-box.show { display: block; }
+
+    /* Dance info */
+    .dance-info {
+      padding: 0 32px 28px;
+      border-top: 1px solid var(--border);
+    }
+
+    .dance-info p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-top: 16px;
+    }
+
+    .dance-info .info-label {
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-top: 16px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="label-tag">AI Dance Recognition</div>
+    <h1>Indian Dance<br/>Classifier</h1>
+    <p class="subtitle">อัปโหลดรูปภาพ แล้ว AI จะบอกว่าเป็นท่าเต้นอะไร</p>
+  </header>
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept="image/*" />
+    <span class="upload-icon">🎭</span>
+    <h3>วางรูปที่นี่ หรือคลิกเพื่อเลือก</h3>
+    <p>รองรับ JPG, PNG, WEBP</p>
+  </div>
+
+  <div class="preview-wrap" id="previewWrap">
+    <div class="preview-img-wrap">
+      <img id="previewImg" src="" alt="preview" />
+    </div>
+    <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">✨ วิเคราะห์ท่าเต้น</button>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p style="color: var(--muted);">กำลังวิเคราะห์...</p>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <div class="small">ผลลัพธ์</div>
+      <div class="result-name" id="resultName">—</div>
+      <div class="result-confidence" id="resultConfidence"></div>
+    </div>
+    <div class="result-bars">
+      <h4>ความเป็นไปได้แต่ละท่า</h4>
+      <div id="barsContainer"></div>
+    </div>
+    <div class="dance-info">
+      <span class="info-label">เกี่ยวกับท่าเต้นนี้</span>
+      <p id="danceDesc"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_KEY = "r07zJLTNP5";
+  const MODEL = "dance-classification/2";
+
+  const danceInfo = {
+    bharatanatyam: "ภารตนาฏยัม — ท่าเต้นคลาสสิกจากรัฐทมิฬนาฑู ประเทศอินเดีย มีประวัติยาวนานกว่า 2,000 ปี มีลักษณะเด่นคือการเคลื่อนไหวของดวงตา มือ และเท้าที่แม่นยำ",
+    kathak: "กัตถัก — ท่าเต้นจากอินเดียเหนือ โดดเด่นด้วยการหมุนตัวอย่างรวดเร็ว การเคาะเท้า และการแสดงออกทางอารมณ์ ได้รับอิทธิพลจากวัฒนธรรมฮินดูและมุสลิม",
+    kathakali: "กัตตากาลี — ท่าเต้นละครจากรัฐเกรละ โดดเด่นด้วยการแต่งหน้าและเครื่องแต่งกายที่สีสันจัดจ้าน เล่าเรื่องราวจากมหากาพย์ฮินดู",
+    kuchipudi: "กุจิปูดี — ท่าเต้นจากรัฐอานธรประเทศ ผสมผสานระหว่างการเต้นและละคร มีลักษณะเบาสบายและเคลื่อนไหวอย่างคล่องแคล่ว",
+    manipuri: "มณีปุรี — ท่าเต้นจากรัฐมณีปุระ มีความอ่อนช้อยและนุ่มนวล เคลื่อนไหวแบบวงกลม เน้นความงามของร่างกายทั้งหมด",
+    mohiniyattam: "โมหินียัตตัม — ท่าเต้นของรัฐเกรละ ชื่อแปลว่า 'การเต้นของหญิงงาม' มีลักษณะนุ่มนวล อ่อนโยน เคลื่อนไหวแบบคลื่น",
+    odissi: "โอดิสสี — ท่าเต้นจากรัฐโอดิชา หนึ่งในท่าเต้นที่เก่าแก่ที่สุด โดดเด่นด้วยท่าสามส่วนโค้ง (tribhanga) และการแสดงออกทางใบหน้า",
+    sattriya: "สัตตรียา — ท่าเต้นจากรัฐอัสสัม สร้างขึ้นโดยนักบุญ Srimanta Sankardeva เพื่อเผยแผ่ศาสนา ผสมผสานการเต้น ดนตรี และละคร"
+  };
+
+  let selectedFile = null;
+
+  const fileInput = document.getElementById('fileInput');
+  const uploadZone = document.getElementById('uploadZone');
+  const previewWrap = document.getElementById('previewWrap');
+  const previewImg = document.getElementById('previewImg');
+
+  fileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) loadFile(file);
+  });
+
+  uploadZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    uploadZone.classList.add('drag-over');
+  });
+
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) loadFile(file);
+  });
+
+  function loadFile(file) {
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      previewImg.src = ev.target.result;
+      previewWrap.classList.add('show');
+      document.getElementById('resultCard').classList.remove('show');
+      document.getElementById('errorBox').classList.remove('show');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function analyze() {
+    if (!selectedFile) return;
+
+    document.getElementById('analyzeBtn').disabled = true;
+    document.getElementById('loading').classList.add('show');
+    document.getElementById('resultCard').classList.remove('show');
+    document.getElementById('errorBox').classList.remove('show');
+
+    try {
+      const base64 = await toBase64(selectedFile);
+      const imageData = base64.split(',')[1];
+
+      const response = await fetch(
+        `https://classify.roboflow.com/${MODEL}?api_key=${API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: imageData
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.error) throw new Error(data.error);
+
+      showResult(data);
+    } catch (err) {
+      showError('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      document.getElementById('loading').classList.remove('show');
+      document.getElementById('analyzeBtn').disabled = false;
+    }
+  }
+
+  function showResult(data) {
+    const top = data.top;
+    const confidence = (data.confidence * 100).toFixed(1);
+    const predictions = data.predictions;
+
+    document.getElementById('resultName').textContent = top;
+    document.getElementById('resultConfidence').innerHTML =
+      `ความมั่นใจ: <span>${confidence}%</span>`;
+    document.getElementById('danceDesc').textContent =
+      danceInfo[top] || 'ท่าเต้นอินเดียที่สวยงาม';
+
+    // Bars
+    const container = document.getElementById('barsContainer');
+    container.innerHTML = '';
+    const sorted = Object.entries(predictions).sort((a, b) => b[1].confidence - a[1].confidence);
+
+    sorted.forEach(([name, val]) => {
+      const pct = (val.confidence * 100).toFixed(1);
+      const div = document.createElement('div');
+      div.className = 'bar-item';
+      div.innerHTML = `
+        <div class="bar-label">${name}</div>
+        <div class="bar-track"><div class="bar-fill" data-pct="${pct}"></div></div>
+        <div class="bar-pct">${pct}%</div>
+      `;
+      container.appendChild(div);
+    });
+
+    document.getElementById('resultCard').classList.add('show');
+
+    // Animate bars
+    setTimeout(() => {
+      document.querySelectorAll('.bar-fill').forEach(el => {
+        el.style.width = el.dataset.pct + '%';
+      });
+    }, 100);
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = msg;
+    box.classList.add('show');
+  }
+
+  function toBase64(file) {
+    return new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+  }
+</script>
+</body>
+</html>
